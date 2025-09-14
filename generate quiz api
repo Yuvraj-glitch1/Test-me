@@ -1,0 +1,105 @@
+import { generateText } from "ai"
+import { xai } from "@ai-sdk/xai"
+import { z } from "zod"
+import type { NextRequest } from "next/server"
+
+// Define the quiz structure schema
+const QuizSchema = z.object({
+  questions: z.array(
+    z.object({
+      id: z.number(),
+      question: z.string(),
+      options: z.array(z.string()),
+      correctAnswer: z.number(),
+      explanation: z.string(),
+    }),
+  ),
+})
+
+export async function POST(request: NextRequest) {
+  try {
+    const { topic, difficulty, numQuestions, classLevel } = await request.json()
+
+    if (!topic || !difficulty || !numQuestions || !classLevel) {
+      return new Response("Missing required fields", { status: 400 })
+    }
+
+    const difficultyPrompts = {
+      easy: "basic concepts and fundamental knowledge",
+      medium: "intermediate understanding and application",
+      hard: "advanced concepts and critical thinking",
+    }
+
+    const classLevelPrompts = {
+      "1": "very basic concepts suitable for 6-7 year olds, simple vocabulary, fundamental recognition",
+      "2": "basic concepts for 7-8 year olds, simple problem solving, basic reading and math",
+      "3": "elementary level for 8-9 year olds, introduction to structured learning",
+      "4": "primary education level for 9-10 year olds, foundational concepts across subjects",
+      "5": "upper primary level for 10-11 year olds, more complex concepts and applications",
+      "6": "middle school level for 11-12 year olds, subject-specific knowledge building",
+      "7": "junior secondary level for 12-13 year olds, analytical thinking development",
+      "8": "secondary level for 13-14 year olds, comprehensive subject understanding",
+      "9": "high school level for 14-15 year olds, advanced concepts and critical analysis",
+      "10": "senior secondary level for 15-16 year olds, board exam preparation level",
+      "11": "higher secondary level for 16-17 year olds, specialized subject focus",
+      "12": "pre-university level for 17-18 year olds, advanced analytical and application skills",
+    }
+
+    const prompt = `Create a ${difficulty} level quiz about "${topic}" with exactly ${numQuestions} multiple choice questions for Class ${classLevel} students.
+    
+    Important: Align the content with Class ${classLevel} syllabus and ${classLevelPrompts[classLevel as keyof typeof classLevelPrompts]}.
+    Focus on ${difficultyPrompts[difficulty as keyof typeof difficultyPrompts]} appropriate for this grade level.
+    
+    Each question should have:
+    - A clear, well-written question appropriate for Class ${classLevel} students
+    - 4 multiple choice options (A, B, C, D) using age-appropriate language
+    - The correct answer (as index 0-3)
+    - A detailed explanation suitable for Class ${classLevel} understanding
+    
+    Make sure questions are educational, accurate, and specifically tailored to Class ${classLevel} curriculum standards.
+    Use vocabulary and concepts that Class ${classLevel} students would understand and encounter in their studies.
+    
+    Return your response as a valid JSON object with this exact structure:
+    {
+      "questions": [
+        {
+          "id": 1,
+          "question": "Your question here",
+          "options": ["Option A", "Option B", "Option C", "Option D"],
+          "correctAnswer": 0,
+          "explanation": "Detailed explanation here"
+        }
+      ]
+    }
+    
+    Only return the JSON object, no additional text.`
+
+    const result = await generateText({
+      model: xai("grok-4", {
+        apiKey: process.env.XAI_API_KEY,
+      }),
+      prompt,
+      system: `You are an expert educator and quiz creator specializing in Class ${classLevel} curriculum. Generate high-quality, age-appropriate educational quiz questions that align with Class ${classLevel} syllabus standards. Ensure all questions are factually accurate, use appropriate vocabulary for the grade level, and promote learning. Always respond with valid JSON only.`,
+    })
+
+    let parsedQuiz
+    try {
+      parsedQuiz = JSON.parse(result.text)
+      // Validate the parsed data against our schema
+      const validatedQuiz = QuizSchema.parse(parsedQuiz)
+
+      return Response.json({
+        success: true,
+        quiz: validatedQuiz,
+        sessionId: `quiz_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        classLevel,
+      })
+    } catch (parseError) {
+      console.error("Error parsing quiz JSON:", parseError)
+      return new Response("Failed to parse quiz response", { status: 500 })
+    }
+  } catch (error) {
+    console.error("Error generating quiz:", error)
+    return new Response("Failed to generate quiz", { status: 500 })
+  }
+}

@@ -1,0 +1,57 @@
+import type { NextRequest } from "next/server"
+
+// Predefined topics for better quiz generation
+const QUIZ_TOPICS = [
+  // Academic Subjects
+  { id: "math", name: "Mathematics", category: "Academic" },
+  { id: "science", name: "Science", category: "Academic" },
+  { id: "history", name: "History", category: "Academic" },
+  { id: "geography", name: "Geography", category: "Academic" },
+  { id: "literature", name: "Literature", category: "Academic" },
+  { id: "physics", name: "Physics", category: "Academic" },
+  { id: "chemistry", name: "Chemistry", category: "Academic" },
+  { id: "biology", name: "Biology", category: "Academic" },
+
+  // Technology
+  { id: "programming", name: "Programming", category: "Technology" },
+  { id: "web-dev", name: "Web Development", category: "Technology" },
+  { id: "ai-ml", name: "AI & Machine Learning", category: "Technology" },
+  { id: "cybersecurity", name: "Cybersecurity", category: "Technology" },
+
+  // General Knowledge
+  { id: "world-facts", name: "World Facts", category: "General Knowledge" },
+  { id: "sports", name: "Sports", category: "General Knowledge" },
+  { id: "movies", name: "Movies & Entertainment", category: "General Knowledge" },
+  { id: "music", name: "Music", category: "General Knowledge" },
+
+  // Professional
+  { id: "business", name: "Business", category: "Professional" },
+  { id: "marketing", name: "Marketing", category: "Professional" },
+  { id: "finance", name: "Finance", category: "Professional" },
+  { id: "management", name: "Management", category: "Professional" },
+]
+
+export async function GET(request: NextRequest) {
+  try {
+    // Group topics by category
+    const groupedTopics = QUIZ_TOPICS.reduce(
+      (acc, topic) => {
+        if (!acc[topic.category]) {
+          acc[topic.category] = []
+        }
+        acc[topic.category].push(topic)
+        return acc
+      },
+      {} as Record<string, typeof QUIZ_TOPICS>,
+    )
+
+    return Response.json({
+      success: true,
+      topics: QUIZ_TOPICS,
+      groupedTopics,
+    })
+  } catch (error) {
+    console.error("Error fetching topics:", error)
+    return new Response("Failed to fetch topics", { status: 500 })
+  }
+}

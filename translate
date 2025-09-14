@@ -1,0 +1,25 @@
+import { generateText } from "ai"
+import { xai } from "@ai-sdk/xai"
+
+export async function POST(request: Request) {
+  try {
+    const { text, targetLanguage } = await request.json()
+
+    if (!text || !targetLanguage) {
+      return Response.json({ error: "Text and target language are required" }, { status: 400 })
+    }
+
+    const { text: translatedText } = await generateText({
+      model: xai("grok-2"),
+      prompt: `Translate the following text to ${targetLanguage === "hi" ? "Hindi" : "English"}. 
+      Maintain the original meaning and tone. Only return the translated text, nothing else.
+      
+      Text to translate: ${text}`,
+    })
+
+    return Response.json({ translatedText })
+  } catch (error) {
+    console.error("Translation error:", error)
+    return Response.json({ error: "Translation failed" }, { status: 500 })
+  }
+}

@@ -1,0 +1,81 @@
+import { generateText } from "ai"
+import { xai } from "@ai-sdk/xai"
+import type { NextRequest } from "next/server"
+
+export async function POST(request: NextRequest) {
+  try {
+    const { sessionId, answers, quiz, topic, difficulty, classLevel } = await request.json()
+
+    if (!sessionId || !answers || !quiz) {
+      return new Response("Missing required fields", { status: 400 })
+    }
+
+    // Calculate score
+    let correctAnswers = 0
+    const results = quiz.questions.map((question: any, index: number) => {
+      const userAnswer = answers[index]
+      const isCorrect = userAnswer === question.correctAnswer
+      if (isCorrect) correctAnswers++
+
+      return {
+        questionId: question.id,
+        question: question.question,
+        userAnswer,
+        correctAnswer: question.correctAnswer,
+        isCorrect,
+        explanation: question.explanation,
+        options: question.options,
+      }
+    })
+
+    const score = Math.round((correctAnswers / quiz.questions.length) * 100)
+
+    // Generate AI feedback
+    const feedbackPrompt = `The user is a Class ${classLevel} student who just completed a ${difficulty} level quiz about "${topic}". 
+    They scored ${score}% (${correctAnswers}/${quiz.questions.length} correct).
+    
+    Here are their results:
+    ${results
+      .map(
+        (r, i) => `
+    Question ${i + 1}: ${r.question}
+    User answered: ${r.options[r.userAnswer] || "No answer"}
+    Correct answer: ${r.options[r.correctAnswer]}
+    Result: ${r.isCorrect ? "Correct" : "Incorrect"}
+    `,
+      )
+      .join("\n")}
+    
+    Provide encouraging, constructive feedback that:
+    1. Acknowledges their performance appropriate for Class ${classLevel} level
+    2. Highlights areas they did well
+    3. Suggests specific study areas relevant to Class ${classLevel} curriculum
+    4. Provides age-appropriate learning recommendations
+    5. Motivates them to continue learning with Class ${classLevel} appropriate language
+    
+    Keep it positive, educational, and suitable for a Class ${classLevel} student, around 100-150 words.`
+
+    const feedbackResult = await generateText({
+      model: xai("grok-4", {
+        apiKey: process.env.XAI_API_KEY,
+      }),
+      prompt: feedbackPrompt,
+      system: `You are a supportive and knowledgeable tutor providing personalized feedback to Class ${classLevel} students to help them learn and improve at their grade level.`,
+    })
+
+    return Response.json({
+      success: true,
+      sessionId,
+      score,
+      correctAnswers,
+      totalQuestions: quiz.questions.length,
+      results,
+      feedback: feedbackResult.text,
+      timestamp: new Date().toISOString(),
+      classLevel,
+    })
+  } catch (error) {
+    console.error("Error submitting quiz:", error)
+    return new Response("Failed to submit quiz", { status: 500 })
+  }
+}
