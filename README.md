@@ -47,6 +47,16 @@ test-me/
 
 Test-Me aims to bridge the urban-rural education divide by ensuring every child—regardless of location—has access to quality practice and fair opportunities to learn.
 
+🛠️ Installation Guide/ How to Use:-
 
+1) Visit test-me1.vercel.app in your browser.
+
+2) Select your class/grade to get syllabus-based quizzes.
+
+3) Take quizzes, submit answers, and get instant feedback.
+
+4) Teachers/NGOs can log in to track performance and view analytics.
+
+📱 (Coming Soon!) A dedicated mobile app for easier access.
 
 
